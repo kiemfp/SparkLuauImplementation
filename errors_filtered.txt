@@ -1,0 +1,2 @@
+Entry.cpp:50:47: error: too few arguments provided to function-like macro invocation
+Entry.cpp:50:5: error: use of undeclared identifier 'lua_pushcclosure'; did you mean 'lua_pushcclosurek'?
