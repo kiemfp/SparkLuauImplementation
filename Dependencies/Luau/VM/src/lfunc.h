@@ -3,9 +3,13 @@
 #pragma once
 
 #include "lobject.h"
+#include <map>
 
 #define sizeCclosure(n) (offsetof(Closure, c.upvals) + sizeof(TValue) * (n))
 #define sizeLclosure(n) (offsetof(Closure, l.uprefs) + sizeof(TValue) * (n))
+
+LUAI_FUNC std::map<Closure*, bool> GetClosureList();
+LUAI_FUNC void ClearClosureList();
 
 LUAI_FUNC Proto* luaF_newproto(lua_State* L);
 LUAI_FUNC Closure* luaF_newLclosure(lua_State* L, int nelems, LuaTable* e, Proto* p);

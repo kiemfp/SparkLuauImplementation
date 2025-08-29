@@ -334,6 +334,10 @@ LUA_API const char* lua_getlightuserdataname(lua_State* L, int tag);
 
 LUA_API void lua_clonefunction(lua_State* L, int idx);
 
+LUA_API void lua_clonecfunction(lua_State* L, int idx);// especific
+
+LUA_API void lua_cleartable(lua_State* L, int idx);
+LUA_API void lua_clonetable(lua_State* L, int idx);
 LUA_API void lua_cleartable(lua_State* L, int idx);
 LUA_API void lua_clonetable(lua_State* L, int idx);
 

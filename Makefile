@@ -2,7 +2,7 @@
 CXX = clang++
 
 # Define compiler flags
-CXX_FLAGS = -std=c++17 -Wall -Wextra -g -DLUAU_SHUFFLE_MEMBERS=0
+CXX_FLAGS = -std=c++20 -Wall -Wextra -g -DLUAU_SHUFFLE_MEMBERS=0
 
 # Define include paths
 INCLUDE_PATHS = \
@@ -14,6 +14,10 @@ INCLUDE_PATHS = \
 	-I./Dependencies/Luau/Compiler/src \
 	-I./Dependencies/Luau/VM/src \
 	-I./Dependencies/LuauVMSet \
+	-I./Misc/Yield \
+	-I./Misc/Env/Script \
+	-I./Misc/Env/Metatable \
+	-I./Misc/Env/Debug \
 	-I./Misc
 
 # Define library flags
@@ -24,7 +28,7 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
 # Define the executable name
-TARGET = Spark
+TARGET = Spark.so
 
 # List all source files
 # Common.cpp is excluded as it's typically not compiled directly or doesn't exist in some Luau setups
@@ -81,7 +85,13 @@ SRCS = \
 	Dependencies/Luau/VM/src/lveclib.cpp \
 	Dependencies/Luau/VM/src/lvmexecute.cpp \
 	Dependencies/Luau/VM/src/lvmload.cpp \
-	Dependencies/Luau/VM/src/lvmutils.cpp
+	Dependencies/Luau/VM/src/lvmutils.cpp \
+	Misc/Yield/Yielder.cpp \
+	Misc/Environment.cpp \
+	Misc/Env/Metatable/Metatable.cpp \
+	Misc/Env/Script/Script.cpp \
+	Misc/Env/Debug/Debug.cpp \
+	Misc/Includes.cpp
 
 # Generate object file names from source files, placing them in OBJ_DIR
 OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SRCS))

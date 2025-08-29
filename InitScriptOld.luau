@@ -1,0 +1,249 @@
+--!strict
+
+-- 1. Definir a "classe" Instance
+Instance = {}
+Instance.__index = Instance
+
+-- Construtor
+function Instance.new(className: string, parent: any?)
+    local self = {
+        Name = className,
+        ClassName = className,
+        Parent = nil,
+        Children = {},
+        _childAddedCallbacks = {},
+        _childRemovedCallbacks = {}
+    }
+
+    setmetatable(self, Instance)
+    if parent then
+        self:SetParent(parent)
+    end
+    return self
+end
+
+--- Gerenciamento de Parent-Child
+function Instance:SetParent(newParent: any?)
+    if self.Parent == newParent then
+        return
+    end
+    if self.Parent then
+        local oldParent = self.Parent
+        if type(oldParent) == "table" and oldParent.Children then
+            local oldChildren = oldParent.Children
+            for i = #oldChildren, 1, -1 do
+                if oldChildren[i] == self then
+                    table.remove(oldChildren, i)
+                    break
+                end
+            end
+            if oldParent._childRemovedCallbacks then
+                for _, callback in ipairs(oldParent._childRemovedCallbacks) do
+                    callback(self)
+                end
+            end
+        elseif type(oldParent) == "userdata" then
+            local meta = getmetatable(oldParent)
+            if meta and meta.Children then
+                local oldChildren = meta.Children
+                for i = #oldChildren, 1, -1 do
+                    if oldChildren[i] == self then
+                        table.remove(oldChildren, i)
+                        break
+                    end
+                end
+                if meta._childRemovedCallbacks then
+                    for _, callback in ipairs(meta._childRemovedCallbacks) do
+                        callback(self)
+                    end
+                end
+            end
+        end
+    end
+    self.Parent = newParent
+    if newParent then
+        if type(newParent) == "table" and newParent.Children then
+            table.insert(newParent.Children, self)
+            if newParent._childAddedCallbacks then
+                for _, callback in ipairs(newParent._childAddedCallbacks) do
+                    callback(self)
+                end
+            end
+        elseif type(newParent) == "userdata" then
+            local meta = getmetatable(newParent)
+            if meta and meta.Children then
+                table.insert(meta.Children, self)
+                if meta._childAddedCallbacks then
+                    for _, callback in ipairs(meta._childAddedCallbacks) do
+                        callback(self)
+                    end
+                end
+            else
+                error("Parent criado com newproxy não tem a estrutura esperada (metatable com Children).")
+            end
+        else
+             error("Tipo de pai inválido: " .. tostring(type(newParent)))
+        end
+    end
+end
+
+--- Navegação
+function Instance:FindFirstChild(name: string): Instance?
+    local children = nil
+    if type(self) == "table" then
+        children = self.Children
+    elseif type(self) == "userdata" then
+        local meta = getmetatable(self)
+        if meta then children = meta.Children end
+    end
+    if children then
+        for _, child in ipairs(children) do
+            if child.Name == name then
+                return child
+            end
+        end
+    end
+    return nil
+end
+
+function Instance:FindFirstAncestor(name: string): Instance?
+    local current = self.Parent
+    while current do
+        local currentName = nil
+        if type(current) == "table" then
+            currentName = current.Name
+        elseif type(current) == "userdata" then
+            local meta = getmetatable(current)
+            if meta then currentName = meta.Name end
+        end
+        if currentName == name then
+            return current
+        end
+        local currentParent = nil
+        if type(current) == "table" then
+            currentParent = current.Parent
+        elseif type(current) == "userdata" then
+            local meta = getmetatable(current)
+            if meta then currentParent = meta.Parent end
+        end
+        current = currentParent
+    end
+    return nil
+end
+
+--- Eventos (Callback simples)
+function Instance:OnChildAdded(callback: (child: Instance) -> ())
+    table.insert(self._childAddedCallbacks, callback)
+end
+
+function Instance:OnChildRemoved(callback: (child: Instance) -> ())
+    table.insert(self._childRemovedCallbacks, callback)
+end
+
+---
+--- 2. Configuração do DataModel (Exemplo de Uso)
+---
+
+local Game = newproxy(true)
+local gameMeta = getmetatable(Game) :: { [string]: any }
+
+gameMeta.Name = "Game"
+gameMeta.ClassName = "DataModel"
+gameMeta.Parent = nil
+gameMeta.Children = {}
+gameMeta._childAddedCallbacks = {}
+gameMeta._childRemovedCallbacks = {}
+
+for k, v in pairs(Instance) do
+    if type(v) == "function" then
+        gameMeta[k] = v
+    end
+end
+gameMeta.__index = gameMeta
+
+gameMeta.__newindex = function(t, k, v)
+    if k == "Name" or k == "Parent" or k == "Children" or
+       k == "_childAddedCallbacks" or k == "_childRemovedCallbacks" then
+        rawset(t, k, v)
+    else
+        warn("Attempt to set undefined or protected property '" .. k .. "' on Game.")
+    end
+end
+
+getgenv().game = Game
+
+local Workspace = Instance.new("Workspace", Game)
+local Players = Instance.new("Players", Game)
+local CoreGui = Instance.new("CoreGui", Game)
+local CorePackages = Instance.new("CorePackages", Game)
+local ScriptContext = Instance.new("ScriptContext", Game)
+local ScriptsContainer = Instance.new("ActorContainer", Game)
+ScriptsContainer.Name = "ScriptsContainer"
+
+local InitScript = Instance.new("Script", ScriptsContainer)
+InitScript.Name = "InitScript.luau"
+
+-- ***** CÓDIGO DO INIT SCRIPT AGORA SEM AS LINHAS PROBLEMÁTICAS *****
+InitScript.Source = [[
+    print("InitScript.luau está executando!")
+    print("Acessando 'game' globalmente:", tostring(getgenv().game.Name))
+
+    local part = Instance.new("Part", game.Workspace)
+    part.Name = "ScriptGeneratedPart"
+    print("Criou parte via script:", part.Name)
+]]
+
+print("--- DataModel Estrutura ---")
+print("DataModel Name (via Game.Name):", Game.Name)
+print("DataModel ClassName (via Game.ClassName):", Game.Name)
+
+print("\n--- Filhos Diretos do DataModel ---")
+for _, child in ipairs(Game.Children) do
+    print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
+end
+
+print("\n--- Acessando elementos por FindFirstChild ---")
+local foundWorkspace = Game:FindFirstChild("Workspace")
+if foundWorkspace then
+    print("Found Workspace:", foundWorkspace.Name)
+end
+
+local foundScriptsContainer = Game:FindFirstChild("ScriptsContainer")
+if foundScriptsContainer then
+    print("Found ScriptsContainer:", foundScriptsContainer.Name)
+    local foundInitScript = foundScriptsContainer:FindFirstChild("InitScript.luau")
+    if foundInitScript then
+        print("  Found InitScript.luau:", foundInitScript.Name)
+        print("  InitScript Source (dummy):", InitScript.Source:sub(1,50) .. "...")
+    end
+end
+
+print("\n--- Teste de Hierarquia ---")
+local tempPart = Instance.new("Part", Workspace)
+print("Part Parent:", tempPart.Parent.Name)
+tempPart:SetParent(nil)
+
+print("InitScript Parent:", InitScript.Parent.Name)
+
+Game:OnChildAdded(function(child: Instance)
+    print("EVENTO: Novo filho adicionado ao Game:", child.Name)
+end)
+
+local NewService = Instance.new("Folder")
+NewService.Name = "NewServiceExample"
+NewService:SetParent(Game)
+print("DataModel Children após adicionar NewServiceExample:", #gameMeta.Children)
+
+NewService:SetParent(nil)
+print("DataModel Children após remover NewServiceExample:", #gameMeta.Children)
+
+print("\n--- Executando InitScript.luau ---")
+local scriptFunc = loadstring(InitScript.Source)
+if scriptFunc then
+    local success, err = pcall(scriptFunc)
+    if not success then
+        warn("Erro fatal ao executar InitScript (pcall do Main Script):", tostring(err))
+    end
+else
+    warn("Não foi possível carregar o InitScript.")
+end

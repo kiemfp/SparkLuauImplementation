@@ -1,249 +1,146 @@
---!strict
 
--- 1. Definir a "classe" Instance
-Instance = {}
+-- Cria uma corrotina
+local coroutine_to_test = coroutine.create(function()
+    -- Este é o ambiente da corrotina.
+    -- 'a' e 'b' são variáveis locais.
+    local a = 10
+    b = 20
+
+    -- Ponto de suspensão
+    coroutine.yield()
+
+    -- Após o 'yield', a execução da corrotina continua aqui.
+    print("Corrotina retomada.")
+end)
+
+-- Inicia a corrotina. Ela irá suspender no `yield()`.
+coroutine.resume(coroutine_to_test)
+print("Corrotina suspensa.")
+
+-- Obtém o ambiente da corrotina usando 'gettenv'
+-- A função 'gettenv' do C é chamada aqui.
+local coroutine_env = gettenv(coroutine_to_test)
+
+-- Verifica o ambiente da corrotina
+-- 'coroutine_env' é uma tabela.
+print("O ambiente da corrotina é uma tabela:", type(coroutine_env) == "table")
+
+-- A variável 'b' (sem 'local') foi criada no ambiente global da corrotina.
+-- Portanto, ela está presente na tabela 'coroutine_env'.
+print("Variável 'b' no ambiente da corrotina:", coroutine_env.b)
+
+-- Adiciona uma nova variável no ambiente da corrotina
+coroutine_env.new_var = 30
+print("Adicionada 'new_var' no ambiente da corrotina.")
+
+-- Agora, resume a corrotina. A variável `new_var` pode ser acessada dentro dela.
+coroutine.resume(coroutine_to_test, "novo_valor")
+print("Corrotina retomada.")
+
+-- Tenta acessar a variável 'new_var' dentro da corrotina
+-- O código da corrotina pode ser modificado para imprimir `new_var`.
+-- Por exemplo: `print("Nova variável:", new_var)`
+
+
+
+--[[
+-- Instance class
+local Instance = {}
 Instance.__index = Instance
 
--- Construtor
-function Instance.new(className: string, parent: any?)
-    local self = {
-        Name = className,
-        ClassName = className,
-        Parent = nil,
-        Children = {},
-        _childAddedCallbacks = {},
-        _childRemovedCallbacks = {}
-    }
+function Instance.new(ClassName, Parent)
+    local self = setmetatable({
+        ClassName = ClassName,
+        Name = "(unnamed)",
+        __Children = {},
+        __Parent = nil
+    }, Instance)
 
-    setmetatable(self, Instance)
-    if parent then
-        self:SetParent(parent)
+    if Parent then
+        self.Parent = Parent
     end
+
     return self
 end
 
---- Gerenciamento de Parent-Child
-function Instance:SetParent(newParent: any?)
-    if self.Parent == newParent then
-        return
-    end
-    if self.Parent then
-        local oldParent = self.Parent
-        if type(oldParent) == "table" and oldParent.Children then
-            local oldChildren = oldParent.Children
-            for i = #oldChildren, 1, -1 do
-                if oldChildren[i] == self then
-                    table.remove(oldChildren, i)
-                    break
-                end
-            end
-            if oldParent._childRemovedCallbacks then
-                for _, callback in ipairs(oldParent._childRemovedCallbacks) do
-                    callback(self)
-                end
-            end
-        elseif type(oldParent) == "userdata" then
-            local meta = getmetatable(oldParent)
-            if meta and meta.Children then
-                local oldChildren = meta.Children
-                for i = #oldChildren, 1, -1 do
-                    if oldChildren[i] == self then
-                        table.remove(oldChildren, i)
-                        break
-                    end
-                end
-                if meta._childRemovedCallbacks then
-                    for _, callback in ipairs(meta._childRemovedCallbacks) do
-                        callback(self)
-                    end
-                end
+function Instance:SetParent(Parent)
+    if self.__Parent then
+        for i, Child in ipairs(self.__Parent.__Children) do
+            if Child == self then
+                table.remove(self.__Parent.__Children, i)
+                break
             end
         end
     end
-    self.Parent = newParent
-    if newParent then
-        if type(newParent) == "table" and newParent.Children then
-            table.insert(newParent.Children, self)
-            if newParent._childAddedCallbacks then
-                for _, callback in ipairs(newParent._childAddedCallbacks) do
-                    callback(self)
-                end
-            end
-        elseif type(newParent) == "userdata" then
-            local meta = getmetatable(newParent)
-            if meta and meta.Children then
-                table.insert(meta.Children, self)
-                if meta._childAddedCallbacks then
-                    for _, callback in ipairs(meta._childAddedCallbacks) do
-                        callback(self)
-                    end
-                end
-            else
-                error("Parent criado com newproxy não tem a estrutura esperada (metatable com Children).")
-            end
-        else
-             error("Tipo de pai inválido: " .. tostring(type(newParent)))
-        end
+    self.__Parent = Parent
+    if Parent then
+        table.insert(Parent.__Children, self)
     end
 end
 
---- Navegação
-function Instance:FindFirstChild(name: string): Instance?
-    local children = nil
-    if type(self) == "table" then
-        children = self.Children
-    elseif type(self) == "userdata" then
-        local meta = getmetatable(self)
-        if meta then children = meta.Children end
-    end
-    if children then
-        for _, child in ipairs(children) do
-            if child.Name == name then
-                return child
-            end
+function Instance:GetChildren()
+    return self.__Children
+end
+
+function Instance:FindFirstChild(Name)
+    for _, Child in ipairs(self.__Children) do
+        if Child.Name == Name then
+            return Child
         end
     end
     return nil
 end
 
-function Instance:FindFirstAncestor(name: string): Instance?
-    local current = self.Parent
-    while current do
-        local currentName = nil
-        if type(current) == "table" then
-            currentName = current.Name
-        elseif type(current) == "userdata" then
-            local meta = getmetatable(current)
-            if meta then currentName = meta.Name end
-        end
-        if currentName == name then
-            return current
-        end
-        local currentParent = nil
-        if type(current) == "table" then
-            currentParent = current.Parent
-        elseif type(current) == "userdata" then
-            local meta = getmetatable(current)
-            if meta then currentParent = meta.Parent end
-        end
-        current = currentParent
-    end
-    return nil
+function Instance:__tostring()
+    return string.format("%s: %s", self.ClassName, self.Name)
 end
 
---- Eventos (Callback simples)
-function Instance:OnChildAdded(callback: (child: Instance) -> ())
-    table.insert(self._childAddedCallbacks, callback)
-end
-
-function Instance:OnChildRemoved(callback: (child: Instance) -> ())
-    table.insert(self._childRemovedCallbacks, callback)
-end
-
----
---- 2. Configuração do DataModel (Exemplo de Uso)
----
-
-local Game = newproxy(true)
-local gameMeta = getmetatable(Game) :: { [string]: any }
-
-gameMeta.Name = "Game"
-gameMeta.ClassName = "DataModel"
-gameMeta.Parent = nil
-gameMeta.Children = {}
-gameMeta._childAddedCallbacks = {}
-gameMeta._childRemovedCallbacks = {}
-
-for k, v in pairs(Instance) do
-    if type(v) == "function" then
-        gameMeta[k] = v
-    end
-end
-gameMeta.__index = gameMeta
-
-gameMeta.__newindex = function(t, k, v)
-    if k == "Name" or k == "Parent" or k == "Children" or
-       k == "_childAddedCallbacks" or k == "_childRemovedCallbacks" then
-        rawset(t, k, v)
+Instance.__newindex = function(self, Key, Value)
+    if Key == "Parent" then
+        self:SetParent(Value)
     else
-        warn("Attempt to set undefined or protected property '" .. k .. "' on Game.")
+        rawset(self, Key, Value)
     end
 end
 
-getgenv().game = Game
+-- DataModel (game)
+local game = Instance.new("DataModel")
+game.Name = "GAME_NAME"
 
-local Workspace = Instance.new("Workspace", Game)
-local Players = Instance.new("Players", Game)
-local CoreGui = Instance.new("CoreGui", Game)
-local CorePackages = Instance.new("CorePackages", Game)
-local ScriptContext = Instance.new("ScriptContext", Game)
-local ScriptsContainer = Instance.new("ActorContainer", Game)
-ScriptsContainer.Name = "ScriptsContainer"
+function game:GetService(ServiceName)
+    local service = self:FindFirstChild(ServiceName)
+    if service then
+        return service
+    end
+    error(("Service '%s' not found."):format(ServiceName))
+end
 
-local InitScript = Instance.new("Script", ScriptsContainer)
-InitScript.Name = "InitScript.luau"
+-- Example Players service
+local Players = Instance.new("Players", game)
+Players.Name = "Players"
+Players.LocalPlayer = { Name = "Kiemfp", UserId = 12345 }
+Players.Parent = game
 
--- ***** CÓDIGO DO INIT SCRIPT AGORA SEM AS LINHAS PROBLEMÁTICAS *****
-InitScript.Source = [[
-    print("InitScript.luau está executando!")
-    print("Acessando 'game' globalmente:", tostring(getgenv().game.Name))
+-- Example usage
+print(game) -- DataModel: RobloxGameMock
+local pServ = game:GetService("Players")
+print(pServ.LocalPlayer.Name) -- Kiemfp
 
-    local part = Instance.new("Part", game.Workspace)
-    part.Name = "ScriptGeneratedPart"
-    print("Criou parte via script:", part.Name)
+local Workspace = Instance.new("Workspace", game)
+Workspace.Name = "Workspace"
+
+local Part = Instance.new("Part", Workspace)
+Part.Name = "BasePart"
+
+for _, Child in ipairs(game:GetChildren()) do
+    print("Child of game:", Child)
+end
+getgenv().workspace = Workspace
+--return game, Instance, workspace
+getgenv().game = game
+
+getgenv().Game = getgenv().game
+getgenv().Workspace = getgenv().workspace
+
+
 ]]
-
-print("--- DataModel Estrutura ---")
-print("DataModel Name (via Game.Name):", Game.Name)
-print("DataModel ClassName (via Game.ClassName):", Game.Name)
-
-print("\n--- Filhos Diretos do DataModel ---")
-for _, child in ipairs(Game.Children) do
-    print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
-end
-
-print("\n--- Acessando elementos por FindFirstChild ---")
-local foundWorkspace = Game:FindFirstChild("Workspace")
-if foundWorkspace then
-    print("Found Workspace:", foundWorkspace.Name)
-end
-
-local foundScriptsContainer = Game:FindFirstChild("ScriptsContainer")
-if foundScriptsContainer then
-    print("Found ScriptsContainer:", foundScriptsContainer.Name)
-    local foundInitScript = foundScriptsContainer:FindFirstChild("InitScript.luau")
-    if foundInitScript then
-        print("  Found InitScript.luau:", foundInitScript.Name)
-        print("  InitScript Source (dummy):", InitScript.Source:sub(1,50) .. "...")
-    end
-end
-
-print("\n--- Teste de Hierarquia ---")
-local tempPart = Instance.new("Part", Workspace)
-print("Part Parent:", tempPart.Parent.Name)
-tempPart:SetParent(nil)
-
-print("InitScript Parent:", InitScript.Parent.Name)
-
-Game:OnChildAdded(function(child: Instance)
-    print("EVENTO: Novo filho adicionado ao Game:", child.Name)
-end)
-
-local NewService = Instance.new("Folder")
-NewService.Name = "NewServiceExample"
-NewService:SetParent(Game)
-print("DataModel Children após adicionar NewServiceExample:", #gameMeta.Children)
-
-NewService:SetParent(nil)
-print("DataModel Children após remover NewServiceExample:", #gameMeta.Children)
-
-print("\n--- Executando InitScript.luau ---")
-local scriptFunc = loadstring(InitScript.Source)
-if scriptFunc then
-    local success, err = pcall(scriptFunc)
-    if not success then
-        warn("Erro fatal ao executar InitScript (pcall do Main Script):", tostring(err))
-    end
-else
-    warn("Não foi possível carregar o InitScript.")
-end

@@ -6,6 +6,17 @@
 #include "lmem.h"
 #include "lgc.h"
 
+std::map<Closure*, bool> ClosureMap;
+std::map<Closure*, bool> GetClosureList()
+{
+    return ClosureMap;
+}
+
+void ClearClosureList()
+{
+    ClosureMap.clear();
+}
+
 Proto* luaF_newproto(lua_State* L)
 {
     Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
@@ -67,6 +78,11 @@ Closure* luaF_newLclosure(lua_State* L, int nelems, LuaTable* e, Proto* p)
     c->l.p = p;
     for (int i = 0; i < nelems; ++i)
         setnilvalue(&c->l.uprefs[i]);
+
+    ClosureMap.insert(std::pair<Closure*, bool>{ c, true });
+
+    //PatchCFG((uintptr_t)c);
+    //RBX::Print(1, "Patched a closure created by luaF_newLclosure");
     return c;
 }
 
@@ -82,6 +98,11 @@ Closure* luaF_newCclosure(lua_State* L, int nelems, LuaTable* e)
     c->c.f = NULL;
     c->c.cont = NULL;
     c->c.debugname = NULL;
+
+    ClosureMap.insert(std::pair<Closure*, bool>{ c, true });
+
+    //PatchCFG((uintptr_t)c);
+    //RBX::Print(1, "Patched a closure created by luaF_newCclosure");
     return c;
 }
 

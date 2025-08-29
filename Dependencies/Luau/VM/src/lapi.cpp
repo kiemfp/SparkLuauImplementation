@@ -100,7 +100,7 @@ static LUAU_NOINLINE TValue* pseudo2addr(lua_State* L, int idx)
     }
 }
 
-static LUAU_FORCEINLINE TValue* index2addr(lua_State* L, int idx)
+LUAU_FORCEINLINE TValue* index2addr(lua_State* L, int idx)
 {
     if (idx > 0)
     {
@@ -1564,6 +1564,23 @@ void lua_clonefunction(lua_State* L, int idx)
     for (int i = 0; i < cl->nupvalues; ++i)
         setobj2n(L, &newcl->l.uprefs[i], &cl->l.uprefs[i]);
     setclvalue(L, L->top, newcl);
+    api_incr_top(L);
+}
+
+void lua_clonecfunction(lua_State* L, int idx)
+{
+    luaC_checkGC(L);
+    luaC_threadbarrier(L);
+    Closure* cl = clvalue(index2addr(L, idx));
+    api_checknelems(L, cl->nupvalues);
+    Closure* newcl = luaF_newCclosure(L, cl->nupvalues, cl->env);
+    newcl->c.f = (lua_CFunction)cl->c.f;
+    newcl->c.cont = (lua_Continuation)cl->c.cont;
+    newcl->c.debugname = (const char*)cl->c.debugname;
+    for (int i = 0; i < cl->nupvalues; i++)
+        setobj2n(L, &newcl->c.upvals[i], &cl->c.upvals[i]);
+    setclvalue(L, L->top, newcl);
+    LUAU_ASSERT(iswhite(obj2gco(newcl)));
     api_incr_top(L);
 }
 
