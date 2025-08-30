@@ -3,7 +3,7 @@
 
 void environment::initialize(lua_State* L)
 {
-    //closure_library::initialize(L); //Soo many errors
+    closure_library::initialize(L); //Soo many errors
     script_library::initialize(L);
     //http_library::initialize(L);
     debug_library::initialize(L);
@@ -16,6 +16,8 @@ void environment::initialize(lua_State* L)
     //websocket_library::initialize(L);
     //instance_library::initialize(L);
     //signal_library::initialize(L);
+
+    misc_library::initialize(L);
 
 	//hooks::initialize(L);
 

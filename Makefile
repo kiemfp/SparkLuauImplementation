@@ -2,7 +2,7 @@
 CXX = clang++
 
 # Define compiler flags
-CXX_FLAGS = -std=c++20 -Wall -Wextra -g -DLUAU_SHUFFLE_MEMBERS=0
+CXX_FLAGS = -std=c++20 -Wall -Wextra -g
 
 # Define include paths
 INCLUDE_PATHS = \
@@ -18,7 +18,9 @@ INCLUDE_PATHS = \
 	-I./Misc/Env/Script \
 	-I./Misc/Env/Metatable \
 	-I./Misc/Env/Debug \
-	-I./Misc
+	-I./Misc/Env/Closure \
+	-I./Misc/Env/Misc \
+	-I./Misc/
 
 # Define library flags
 LIBRARIES = -lc++ -lm
@@ -27,11 +29,7 @@ LIBRARIES = -lc++ -lm
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
-# Define the executable name
-TARGET = Spark.so
-
 # List all source files
-# Common.cpp is excluded as it's typically not compiled directly or doesn't exist in some Luau setups
 SRCS = \
 	Entry.cpp \
 	Dependencies/Luau/Ast/src/Allocator.cpp \
@@ -91,13 +89,15 @@ SRCS = \
 	Misc/Env/Metatable/Metatable.cpp \
 	Misc/Env/Script/Script.cpp \
 	Misc/Env/Debug/Debug.cpp \
-	Misc/Includes.cpp
+	Misc/Includes.cpp \
+	Misc/Env/Closure/Closure.cpp \
+	Misc/Env/Misc/Misc.cpp
 
 # Generate object file names from source files, placing them in OBJ_DIR
 OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SRCS))
-# For sources within Dependencies/, map their path to OBJ_DIR with appropriate .o extension
-OBJS := $(patsubst Dependencies/%.cpp,$(OBJ_DIR)/Dependencies/%.o,$(OBJS))
-OBJS := $(patsubst $(OBJ_DIR)/%.o,$(OBJ_DIR)/%.o,$(OBJS)) # Ensure Entry.o is directly in OBJ_DIR
+
+# Define the executable name
+TARGET = Spark.out
 
 # Rule to build the executable
 $(TARGET): $(OBJS)
@@ -106,15 +106,7 @@ $(TARGET): $(OBJS)
 	$(CXX) $(OBJS) $(LIBRARIES) -o $(TARGET)
 
 # Rule to compile a .cpp file into a .o file
-# $(OBJ_DIR)/%.o: %.cpp ensures that Entry.cpp maps to build/obj/Entry.o
 $(OBJ_DIR)/%.o: %.cpp
-	@mkdir -p $(@D) # Create parent directories if they don't exist
-	@echo "Compiling $<..."
-	$(CXX) $(CXX_FLAGS) $(INCLUDE_PATHS) -c $< -o $@
-
-# Rule for compiling source files under Dependencies/
-# This is a generic rule for any .cpp file inside Dependencies/
-$(OBJ_DIR)/Dependencies/%.o: Dependencies/%.cpp
 	@mkdir -p $(@D) # Create parent directories if they don't exist
 	@echo "Compiling $<..."
 	$(CXX) $(CXX_FLAGS) $(INCLUDE_PATHS) -c $< -o $@
@@ -131,4 +123,3 @@ clean:
 run: $(TARGET)
 	@echo "Running $(TARGET)..."
 	./$(TARGET)
-

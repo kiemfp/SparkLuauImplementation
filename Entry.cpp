@@ -114,7 +114,7 @@ int main() {
     // here: read input
     std::string luauCode;
     std::string line;
-    while (std::getline(std::cin, line)) { // "./Spark.so < InitScript.luau" gets the provided code. 
+    while (std::getline(std::cin, line)) { // "./Spark.out < InitScript.luau" gets the provided code. 
         luauCode += line + "\n"; // every line to newline, wow pro. 
     }
 
@@ -125,7 +125,7 @@ int main() {
     }
 
     std::cout << "\n----COMPILING LUAU CODE FROM STDIN----" << std::endl;
-    std::cerr << "DEBUG: Luau code received (first 10 chars): " << luauCode.substr(0, std::min((size_t)10, luauCode.length())) << (luauCode.length() > 100 ? "..." : "") << std::endl;
+    //std::cerr << "DEBUG: Luau code received (first 10 chars): " << luauCode.substr(0, std::min((size_t)10, luauCode.length())) << (luauCode.length() > 100 ? "..." : "") << std::endl;
 
     //luau_compileW is from Env. 
     char* bytecode = luau_compileG(luauCode.c_str(), luauCode.length(), NULL, &bytecodeSize, &CompileErrorMessage);
@@ -147,7 +147,7 @@ int main() {
         lua_close(L);
         return 1;
     }
-
+    std::cout << "\n----Compiled Successfully! ----" << std::endl;
     std::cout << "\n----EXECUTING LUAU CODE----" << std::endl;
     int loadStatus = luau_load(L, "@InitScript", bytecode, bytecodeSize, 0);
 

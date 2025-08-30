@@ -1,1 +1,1 @@
-./Spark.so < InitScript.luau
+./Spark.out < luauFiles/InitScript.luau

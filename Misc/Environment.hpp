@@ -5,8 +5,9 @@
 
 #include "Env/Debug/Debug.hpp"
 #include "Env/Metatable/Metatable.hpp"
-//#include "Env/Closure/Closure.hpp"
+#include "Env/Closure/Closure.hpp"
 #include "Env/Script/Script.hpp"
+#include "Env/Misc/Misc.hpp"
 #include <lua.h>
 class environment
 {
